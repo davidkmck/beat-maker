@@ -111,6 +111,15 @@
       box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
     }
 
+    .save-btn {
+      border-color: var(--bass);
+      color: var(--bass);
+    }
+    
+    .save-btn:hover {
+      background: rgba(57, 255, 20, 0.1);
+    }
+
     .record-btn {
       border-color: var(--text-dim);
       color: var(--text);
@@ -225,8 +234,6 @@
     }
 
     .steps {
-      display: grid;
-      grid-template-columns: repeat(16, window.1fr);
       display: flex;
       gap: 6px;
       width: 100%;
@@ -261,8 +268,6 @@
       position: absolute;
       top: 0;
       bottom: 0;
-      width: calc((100% - 250px) / 16); /* Dynamic calculation matching step columns */
-      left: 250px;
       background: rgba(255, 255, 255, 0.04);
       border-left: 1px dashed rgba(0, 229, 255, 0.4);
       border-right: 1px dashed rgba(0, 229, 255, 0.4);
@@ -275,17 +280,38 @@
     footer {
       margin-top: 25px;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 10px;
       width: 100%;
       max-width: 950px;
       color: var(--text-dim);
       font-size: 11px;
+      border-top: 1px solid var(--border);
+      padding-top: 15px;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .preset-container {
+      line-height: 1.8;
     }
 
     .preset-link {
       color: var(--snare);
       cursor: pointer;
       text-decoration: underline;
+      margin: 0 4px;
+    }
+
+    .custom-preset-link {
+      color: var(--bass);
+      cursor: pointer;
+      text-decoration: underline;
+      margin: 0 4px;
     }
   </style>
 </head>
@@ -301,6 +327,7 @@
         </div>
         <button class="play-btn" id="playBtn">▶ PLAY</button>
         <button class="clear-btn" id="clearBtn">CLEAR</button>
+        <button class="save-btn" id="saveBtn">💾 SAVE BEAT</button>
         <button class="record-btn" id="recordBtn">EXPORT WAV</button>
       </div>
     </header>
@@ -311,17 +338,22 @@
     </div>
   </div>
 
-<footer>
-  <div>STATUS: READY</div>
-  <div>
-    LOAD PRESETS: 
-    <span class="preset-link" id="presetTechno">TECHNO_01</span> | 
-    <span class="preset-link" id="presetHouse">HOUSE_02</span> | 
-    <span class="preset-link" id="presetHipHop">HIP_HOP_03</span> | 
-    <span class="preset-link" id="presetSynthwave">SYNTHWAVE_04</span> | 
-    <span class="preset-link" id="presetChill">AMB_CHILL</span>
-  </div>
-</footer>
+  <footer>
+    <div class="footer-top">
+      <div>STATUS: READY</div>
+      <div class="preset-container">
+        <strong>FACTORY SYSTEM:</strong> 
+        <span class="preset-link" id="presetTechno">TECHNO_01</span> | 
+        <span class="preset-link" id="presetHouse">HOUSE_02</span> | 
+        <span class="preset-link" id="presetHipHop">HIP_HOP_03</span> | 
+        <span class="preset-link" id="presetSynthwave">SYNTHWAVE_04</span> | 
+        <span class="preset-link" id="presetChill">AMB_CHILL</span>
+      </div>
+    </div>
+    <div id="customPresetsSection" style="display: none;">
+      <strong>USER MEMORY BANK:</strong> <span id="customPresetsList"></span>
+    </div>
+  </footer>
 
   <script>
     const TRACKS = [
@@ -346,20 +378,16 @@
     let isRecording = false;
 
     function initAudio() {
-      if (synths.kick) return; // Audio layer already fully active
+      if (synths.kick) return; 
 
-      // Setup global master effects chain
       const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.15 }).toDestination();
       const delay = new Tone.FeedbackDelay("16n", 0.2).connect(reverb);
       
-      // Instantiate master system recording node
       recorder = new Tone.Recorder();
       Tone.Destination.connect(recorder);
 
-      // Map track channels for volume balancing, panning configurations, and separate effects routing
       TRACKS.forEach(track => {
         channels[track.id] = new Tone.Channel().toDestination();
-        
         if (track.id === 'clap' || track.id === 'bass') {
           channels[track.id].connect(delay);
         } else {
@@ -367,7 +395,6 @@
         }
       });
 
-      // Sound Design definitions hooked up directly to unique channels
       synths.kick = new Tone.MembraneSynth({
         pitchDecay: 0.08, octaves: 8, envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.1 }, volume: 3,
       }).connect(channels.kick);
@@ -391,7 +418,6 @@
 
     function playTrackSound(trackId) {
       if (!synths.kick) return;
-      
       if (trackId === 'kick') synths.kick.triggerAttackRelease('C1', '8n');
       else if (trackId === 'snare') synths.snare.triggerAttackRelease('8n');
       else if (trackId === 'hihat') synths.hihat.triggerAttackRelease('32n');
@@ -411,20 +437,19 @@
         const row = document.createElement('div');
         row.className = 'beat-row';
         
-        // Track Title Text Label
         const label = document.createElement('div');
         label.className = `track-label ${track.color}`;
         label.textContent = track.label;
         row.appendChild(label);
 
-        // Track Control Wrapper Block
         const ctrlWrapper = document.createElement('div');
         ctrlWrapper.className = 'track-controls';
 
-        // 1) Track Mute Button
         const muteBtn = document.createElement('button');
         muteBtn.className = 'mute-btn';
-        muteBtn.textContent = 'MUTE';
+        muteBtn.textContent = channels[track.id]?.mute ? 'MUTED' : 'MUTE';
+        if(channels[track.id]?.mute) muteBtn.classList.add('muted');
+        
         muteBtn.addEventListener('click', () => {
           initAudio();
           const currentlyMuted = !channels[track.id].mute;
@@ -433,14 +458,13 @@
           muteBtn.textContent = currentlyMuted ? 'MUTED' : 'MUTE';
         });
 
-        // 2) Track Pan Slider Range Control
         const panSlider = document.createElement('input');
         panSlider.type = 'range';
         panSlider.className = 'pan-slider';
         panSlider.min = '-1';
         panSlider.max = '1';
         panSlider.step = '0.1';
-        panSlider.value = '0';
+        panSlider.value = channels[track.id] ? channels[track.id].pan.value : '0';
         panSlider.addEventListener('input', (e) => {
           initAudio();
           channels[track.id].pan.value = parseFloat(e.target.value);
@@ -450,7 +474,6 @@
         ctrlWrapper.appendChild(panSlider);
         row.appendChild(ctrlWrapper);
 
-        // 16 Step Grid Matrix Buttons
         const stepsContainer = document.createElement('div');
         stepsContainer.className = 'steps';
         
@@ -462,8 +485,6 @@
           stepElement.addEventListener('click', () => {
             grid[ti][si] = !grid[ti][si];
             stepElement.classList.toggle('active', grid[ti][si]);
-            
-            // Preview sound on node assignment tap
             if (grid[ti][si]) {
               initAudio();
               Tone.start();
@@ -547,19 +568,15 @@
         recBtn.textContent = 'REC...';
         recBtn.classList.add('recording');
         recorder.start();
-        
-        // Auto-trigger engine audio loop playback if it wasn't running
         if (!isPlaying) startStopSequencer();
       } else {
         isRecording = false;
         recBtn.textContent = 'EXPORT WAV';
         recBtn.classList.remove('recording');
         
-        // Stop the underlying stream logging thread execution and unpack buffer
         const audioRecording = await recorder.stop();
         const outputUrl = URL.createObjectURL(audioRecording);
         
-        // Form context link binding to trigger download
         const downloadAnchor = document.createElement('a');
         downloadAnchor.download = 'cyberpunk-beat.wav';
         downloadAnchor.href = outputUrl;
@@ -567,9 +584,59 @@
       }
     }
 
+    // --- Save System Logic ---
+    function saveCustomPreset() {
+      const name = prompt("Enter a name for your custom pattern:");
+      if (!name) return;
+      
+      const formattedName = name.toUpperCase().replace(/\s+/g, '_');
+      const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
+      
+      savedPresets[formattedName] = {
+        bpm: parseInt(document.getElementById('bpm').value) || 120,
+        grid: grid
+      };
+      
+      localStorage.setItem('custom_presets', JSON.stringify(savedPresets));
+      loadCustomPresetsMenu();
+    }
+
+    function loadCustomPresetsMenu() {
+      const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
+      const section = document.getElementById('customPresetsSection');
+      const listContainer = document.getElementById('customPresetsList');
+      
+      const keys = Object.keys(savedPresets);
+      if (keys.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+      
+      section.style.display = 'block';
+      listContainer.innerHTML = '';
+      
+      keys.forEach((key, index) => {
+        const link = document.createElement('span');
+        link.className = 'custom-preset-link';
+        link.textContent = key;
+        link.addEventListener('click', () => {
+          document.getElementById('bpm').value = savedPresets[key].bpm;
+          bpm = savedPresets[key].bpm;
+          grid = savedPresets[key].grid;
+          buildGridUI();
+        });
+        
+        listContainer.appendChild(link);
+        if (index < keys.length - 1) {
+          listContainer.appendChild(document.createTextNode(' | '));
+        }
+      });
+    }
+
     // Interactive Button Binding Listeners
     document.getElementById('playBtn').addEventListener('click', startStopSequencer);
     document.getElementById('recordBtn').addEventListener('click', handleWavExport);
+    document.getElementById('saveBtn').addEventListener('click', saveCustomPreset);
     
     document.getElementById('clearBtn').addEventListener('click', () => {
       grid = TRACKS.map(() => Array(STEPS).fill(false));
@@ -579,52 +646,72 @@
     document.getElementById('bpm').addEventListener('change', (e) => {
       bpm = parseInt(e.target.value) || 120;
       if (isPlaying) {
-        // Recycle timing instances if modified live during active playback
         clearInterval(stepInterval);
         const speedInterval = (60 / bpm / 4) * 1000;
         stepInterval = setInterval(tick, speedInterval);
       }
     });
 
-    document.getElementById('presetBtn').addEventListener('click', () => {
-      // Hardcoded Techno Preset configuration map sequence data matrix
+    // Factory Presets Execution Maps
+    document.getElementById('presetTechno').addEventListener('click', () => {
+      document.getElementById('bpm').value = 126; bpm = 126;
       grid = [
-        [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick
-        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
-        [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],  // Hihat
-        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false], // Clap
-        [true, true, false, true, false, true, false, false, true, false, true, false, false, true, false, false]   // Bass
+        [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+        [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
+        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+        [true, true, false, true, false, true, false, false, true, false, true, false, false, true, false, false]
       ];
       buildGridUI();
     });
 
-    // Preset 3: HIP_HOP_03 (Boom-bap bounce with a syncopated snare and heavy bass)
-document.getElementById('presetHipHop').addEventListener('click', () => {
-  document.getElementById('bpm').value = 90;
-  bpm = 90;
-  grid = [
-    [true, false, false, false, false, false, false, true, false, true, true, false, false, false, false, false], // Kick
-    [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],  // Snare
-    [true, false, true, false, true, false, true, true, true, false, true, false, true, false, true, false],        // Hihat
-    [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false], // Clap
-    [true, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false]  // Bass
-  ];
-  buildGridUI();
-});
+    document.getElementById('presetHouse').addEventListener('click', () => {
+      document.getElementById('bpm').value = 120; bpm = 120;
+      grid = [
+        [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
+        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+        [false, false, true, false, false, false, false, true, false, true, false, false, false, false, true, false]
+      ];
+      buildGridUI();
+    });
 
-// Preset 4: SYNTHWAVE_04 (Driving 80s neon-noir rhythm)
-document.getElementById('presetSynthwave').addEventListener('click', () => {
-  document.getElementById('bpm').value = 115;
-  bpm = 115;
-  grid = [
-    [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false], // Kick
-    [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],  // Snare
-    [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],                // Hihat
-    [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
-    [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]        // Bass
-  ];
-  buildGridUI();
-});
+    document.getElementById('presetHipHop').addEventListener('click', () => {
+      document.getElementById('bpm').value = 90; bpm = 90;
+      grid = [
+        [true, false, false, false, false, false, false, true, false, true, true, false, false, false, false, false],
+        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],
+        [true, false, true, false, true, false, true, true, true, false, true, false, true, false, true, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+        [true, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false]
+      ];
+      buildGridUI();
+    });
+
+    document.getElementById('presetSynthwave').addEventListener('click', () => {
+      document.getElementById('bpm').value = 115; bpm = 115;
+      grid = [
+        [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
+        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]
+      ];
+      buildGridUI();
+    });
+
+    document.getElementById('presetChill').addEventListener('click', () => {
+      document.getElementById('bpm').value = 95; bpm = 95;
+      grid = [
+        [true, false, false, false, false, false, true, false, false, true, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+        [true, true, false, true, true, false, true, false, true, true, false, true, true, false, true, false],
+        [false, false, false, false, true, false, false, false, false, false, false, false, false, false, true, false],
+        [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false]
+      ];
+      buildGridUI();
+    });
 
     // PWA Service Worker Client Bootstrapper
     if ('serviceWorker' in navigator) {
@@ -635,8 +722,9 @@ document.getElementById('presetSynthwave').addEventListener('click', () => {
       });
     }
 
-    // Render workspace on start
+    // Render workspace on start & pull active cache configs
     buildGridUI();
+    loadCustomPresetsMenu();
   </script>
 </body>
 </html>
