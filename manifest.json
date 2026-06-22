@@ -1,0 +1,23 @@
+{
+  "short_name": "Beat Maker",
+  "name": "Beat Maker Sequencer",
+  "icons": [
+    {
+      "src": "./beat-maker.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./beat-maker.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}
