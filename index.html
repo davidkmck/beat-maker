@@ -562,6 +562,15 @@ document.getElementById('bpmDown').addEventListener('click', () => setBpm(bpm - 
 
 // Init with house preset
 loadPreset('house');
+
+  // Register Service Worker for PWA installability
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker registered!', reg))
+      .catch(err => console.err('Service Worker registration failed: ', err));
+  });
+}
 </script>
 </body>
 </html>
