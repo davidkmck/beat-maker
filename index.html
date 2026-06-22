@@ -311,10 +311,17 @@
     </div>
   </div>
 
-  <footer>
-    <div>STATUS: READY</div>
-    <div>LOAD PRESET: <span class="preset-link" id="presetBtn">TECHNO_01</span></div>
-  </footer>
+<footer>
+  <div>STATUS: READY</div>
+  <div>
+    LOAD PRESETS: 
+    <span class="preset-link" id="presetTechno">TECHNO_01</span> | 
+    <span class="preset-link" id="presetHouse">HOUSE_02</span> | 
+    <span class="preset-link" id="presetHipHop">HIP_HOP_03</span> | 
+    <span class="preset-link" id="presetSynthwave">SYNTHWAVE_04</span> | 
+    <span class="preset-link" id="presetChill">AMB_CHILL</span>
+  </div>
+</footer>
 
   <script>
     const TRACKS = [
@@ -590,6 +597,34 @@
       ];
       buildGridUI();
     });
+
+    // Preset 3: HIP_HOP_03 (Boom-bap bounce with a syncopated snare and heavy bass)
+document.getElementById('presetHipHop').addEventListener('click', () => {
+  document.getElementById('bpm').value = 90;
+  bpm = 90;
+  grid = [
+    [true, false, false, false, false, false, false, true, false, true, true, false, false, false, false, false], // Kick
+    [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],  // Snare
+    [true, false, true, false, true, false, true, true, true, false, true, false, true, false, true, false],        // Hihat
+    [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false], // Clap
+    [true, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false]  // Bass
+  ];
+  buildGridUI();
+});
+
+// Preset 4: SYNTHWAVE_04 (Driving 80s neon-noir rhythm)
+document.getElementById('presetSynthwave').addEventListener('click', () => {
+  document.getElementById('bpm').value = 115;
+  bpm = 115;
+  grid = [
+    [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false], // Kick
+    [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],  // Snare
+    [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],                // Hihat
+    [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+    [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]        // Bass
+  ];
+  buildGridUI();
+});
 
     // PWA Service Worker Client Bootstrapper
     if ('serviceWorker' in navigator) {
