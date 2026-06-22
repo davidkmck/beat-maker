@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beat Maker</title>
+  <title>Cyberpunk Beat Maker</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="./beat-maker.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,22 +79,28 @@
       display: flex;
       gap: 10px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
-    button {
+    button, select {
       font-family: 'Share Tech Mono', monospace;
       font-size: 13px;
       letter-spacing: 1px;
-      padding: 10px 20px;
+      padding: 10px 15px;
       background: transparent;
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s ease;
+      outline: none;
     }
 
-    button:hover {
+    select {
+      background-color: var(--dim);
+    }
+
+    button:hover, select:hover {
       background: rgba(255,255,255,0.05);
       border-color: var(--text-dim);
     }
@@ -165,7 +171,7 @@
       outline: none;
     }
 
-    /* Grid Layout */
+    /* Grid Layout - Defaults to Portrait View (Hides Track Controls) */
     .sequencer-grid {
       display: flex;
       flex-direction: column;
@@ -175,7 +181,7 @@
 
     .beat-row {
       display: grid;
-      grid-template-columns: 80px 140px 1fr;
+      grid-template-columns: 80px 1fr; /* No middle column for track-controls in portrait */
       gap: 15px;
       align-items: center;
     }
@@ -186,10 +192,21 @@
       letter-spacing: 1px;
     }
 
+    /* Hide Mute and Pan by default on mobile screens/portrait layout */
     .track-controls {
-      display: flex;
+      display: none; 
       align-items: center;
       gap: 10px;
+    }
+
+    /* Responsive Override: Only show track controls in landscape mode or on wider tablet/desktop screens */
+    @media (orientation: landscape), (min-width: 768px) {
+      .beat-row {
+        grid-template-columns: 80px 140px 1fr; /* Restores middle column layout */
+      }
+      .track-controls {
+        display: flex; /* Makes sliders and buttons visible */
+      }
     }
 
     .mute-btn {
@@ -233,15 +250,14 @@
       background: var(--snare);
     }
 
-.steps {
-  display: grid;
-  grid-template-columns: repeat(16, 1fr); /* Forces all 16 squares to scale perfectly on horizontal screens */
-  gap: 6px;
-  width: 100%;
-}
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 6px;
+      width: 100%;
+    }
 
     .step {
-      flex: 1;
       height: 38px;
       background-color: var(--dim);
       border: 1px solid var(--border);
@@ -282,11 +298,11 @@
       margin-top: 25px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 15px;
       width: 100%;
       max-width: 950px;
       color: var(--text-dim);
-      font-size: 11px;
+      font-size: 12px;
       border-top: 1px solid var(--border);
       padding-top: 15px;
     }
@@ -294,25 +310,26 @@
     .footer-top {
       display: flex;
       justify-content: space-between;
-      width: 100%;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
-    .preset-container {
-      line-height: 1.8;
+    .menus-container {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
     }
 
-    .preset-link {
-      color: var(--snare);
-      cursor: pointer;
-      text-decoration: underline;
-      margin: 0 4px;
+    .menu-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .custom-preset-link {
-      color: var(--bass);
-      cursor: pointer;
-      text-decoration: underline;
-      margin: 0 4px;
+    .menu-group strong {
+      font-size: 11px;
+      letter-spacing: 1px;
     }
   </style>
 </head>
@@ -342,17 +359,27 @@
   <footer>
     <div class="footer-top">
       <div>STATUS: READY</div>
-      <div class="preset-container">
-        <strong>FACTORY SYSTEM:</strong> 
-        <span class="preset-link" id="presetTechno">TECHNO_01</span> | 
-        <span class="preset-link" id="presetHouse">HOUSE_02</span> | 
-        <span class="preset-link" id="presetHipHop">HIP_HOP_03</span> | 
-        <span class="preset-link" id="presetSynthwave">SYNTHWAVE_04</span> | 
-        <span class="preset-link" id="presetChill">AMB_CHILL</span>
+      
+      <div class="menus-container">
+        <div class="menu-group">
+          <strong>FACTORY BANK:</strong>
+          <select id="factorySelect">
+            <option value="" disabled selected>CHOOSE GENRE...</option>
+            <option value="techno">TECHNO_01</option>
+            <option value="house">HOUSE_02</option>
+            <option value="hiphop">HIP_HOP_03</option>
+            <option value="synthwave">SYNTHWAVE_04</option>
+            <option value="chill">AMB_CHILL</option>
+          </select>
+        </div>
+
+        <div class="menu-group" id="customPresetsSection" style="display: none;">
+          <strong>USER MEMORY:</strong>
+          <select id="customSelect">
+            </select>
+        </div>
       </div>
-    </div>
-    <div id="customPresetsSection" style="display: none;">
-      <strong>USER MEMORY BANK:</strong> <span id="customPresetsList"></span>
+      
     </div>
   </footer>
 
@@ -600,12 +627,15 @@
       
       localStorage.setItem('custom_presets', JSON.stringify(savedPresets));
       loadCustomPresetsMenu();
+      
+      // Auto-select the newly saved layout inside the select menu dropdown
+      document.getElementById('customSelect').value = formattedName;
     }
 
     function loadCustomPresetsMenu() {
       const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
       const section = document.getElementById('customPresetsSection');
-      const listContainer = document.getElementById('customPresetsList');
+      const selectDropdown = document.getElementById('customSelect');
       
       const keys = Object.keys(savedPresets);
       if (keys.length === 0) {
@@ -613,24 +643,14 @@
         return;
       }
       
-      section.style.display = 'block';
-      listContainer.innerHTML = '';
+      section.style.display = 'flex';
+      selectDropdown.innerHTML = '<option value="" disabled selected>CHOOSE SAVED...</option>';
       
-      keys.forEach((key, index) => {
-        const link = document.createElement('span');
-        link.className = 'custom-preset-link';
-        link.textContent = key;
-        link.addEventListener('click', () => {
-          document.getElementById('bpm').value = savedPresets[key].bpm;
-          bpm = savedPresets[key].bpm;
-          grid = savedPresets[key].grid;
-          buildGridUI();
-        });
-        
-        listContainer.appendChild(link);
-        if (index < keys.length - 1) {
-          listContainer.appendChild(document.createTextNode(' | '));
-        }
+      keys.forEach((key) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        selectDropdown.appendChild(option);
       });
     }
 
@@ -641,6 +661,9 @@
     
     document.getElementById('clearBtn').addEventListener('click', () => {
       grid = TRACKS.map(() => Array(STEPS).fill(false));
+      document.getElementById('factorySelect').value = "";
+      const customSelect = document.getElementById('customSelect');
+      if(customSelect) customSelect.value = "";
       buildGridUI();
     });
 
@@ -653,77 +676,82 @@
       }
     });
 
-    // Factory Presets Execution Maps
-    document.getElementById('presetTechno').addEventListener('click', () => {
-      document.getElementById('bpm').value = 126; bpm = 126;
-      grid = [
-        [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-        [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
-        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
-        [true, true, false, true, false, true, false, false, true, false, true, false, false, true, false, false]
-      ];
+    // Combo Box Event Listeners (Factory System)
+    document.getElementById('factorySelect').addEventListener('change', (e) => {
+      const selection = e.target.value;
+      
+      // Reset the user preset dropdown layout selection if chosen
+      const userSelect = document.getElementById('customSelect');
+      if (userSelect) userSelect.value = "";
+
+      if (selection === 'techno') {
+        document.getElementById('bpm').value = 126; bpm = 126;
+        grid = [
+          [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+          [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+          [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
+          [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+          [true, true, false, true, false, true, false, false, true, false, true, false, false, true, false, false]
+        ];
+      } else if (selection === 'house') {
+        document.getElementById('bpm').value = 120; bpm = 120;
+        grid = [
+          [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+          [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+          [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
+          [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+          [false, false, true, false, false, false, false, true, false, true, false, false, false, false, true, false]
+        ];
+      } else if (selection === 'hiphop') {
+        document.getElementById('bpm').value = 90; bpm = 90;
+        grid = [
+          [true, false, false, false, false, false, false, true, false, true, true, false, false, false, false, false],
+          [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],
+          [true, false, true, false, true, false, true, true, true, false, true, false, true, false, true, false],
+          [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+          [true, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false]
+        ];
+      } else if (selection === 'synthwave') {
+        document.getElementById('bpm').value = 115; bpm = 115;
+        grid = [
+          [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
+          [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+          [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
+          [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+          [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]
+        ];
+      } else if (selection === 'chill') {
+        document.getElementById('bpm').value = 95; bpm = 95;
+        grid = [
+          [true, false, false, false, false, false, true, false, false, true, false, false, false, false, false, false],
+          [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+          [true, true, false, true, true, false, true, false, true, true, false, true, true, false, true, false],
+          [false, false, false, false, true, false, false, false, false, false, false, false, false, false, true, false],
+          [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false]
+        ];
+      }
       buildGridUI();
     });
 
-    document.getElementById('presetHouse').addEventListener('click', () => {
-      document.getElementById('bpm').value = 120; bpm = 120;
-      grid = [
-        [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-        [false, false, true, false, false, false, false, true, false, true, false, false, false, false, true, false]
-      ];
+    // Combo Box Event Listeners (User Memory)
+    document.getElementById('customSelect').addEventListener('change', (e) => {
+      const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
+      const selection = e.target.value;
+      if (!savedPresets[selection]) return;
+
+      // Reset factory selection visual index
+      document.getElementById('factorySelect').value = "";
+
+      document.getElementById('bpm').value = savedPresets[selection].bpm;
+      bpm = savedPresets[selection].bpm;
+      grid = savedPresets[selection].grid;
       buildGridUI();
     });
 
-    document.getElementById('presetHipHop').addEventListener('click', () => {
-      document.getElementById('bpm').value = 90; bpm = 90;
-      grid = [
-        [true, false, false, false, false, false, false, true, false, true, true, false, false, false, false, false],
-        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],
-        [true, false, true, false, true, false, true, true, true, false, true, false, true, false, true, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
-        [true, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false]
-      ];
-      buildGridUI();
-    });
+    // Recalculate timeline cursor whenever device rotates to fix styling offsets
+    window.addEventListener('resize', updateCursorPosition);
 
-    document.getElementById('presetSynthwave').addEventListener('click', () => {
-      document.getElementById('bpm').value = 115; bpm = 115;
-      grid = [
-        [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-        [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]
-      ];
-      buildGridUI();
-    });
-
-    document.getElementById('presetChill').addEventListener('click', () => {
-      document.getElementById('bpm').value = 95; bpm = 95;
-      grid = [
-        [true, false, false, false, false, false, true, false, false, true, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
-        [true, true, false, true, true, false, true, false, true, true, false, true, true, false, true, false],
-        [false, false, false, false, true, false, false, false, false, false, false, false, false, false, true, false],
-        [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false]
-      ];
-      buildGridUI();
-    });
-
-    // PWA Service Worker Client Bootstrapper
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('PWA Service Worker connected!', reg))
-          .catch(err => console.error('PWA Worker connection failed: ', err));
-      });
-    }
-
-    // Render workspace on start & pull active cache configs
+    // Render workspace on boot
     buildGridUI();
     loadCustomPresetsMenu();
   </script>
