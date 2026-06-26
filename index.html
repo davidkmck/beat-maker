@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cyberpunk Beat Maker</title>
+  <title>Beat Maker</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="./beat-maker.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght=500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
   <style>
@@ -82,6 +82,16 @@
 
     .play-btn { border-color: var(--snare); color: var(--snare); font-weight: bold; }
     .save-btn { border-color: var(--bass); color: var(--bass); }
+    
+    .toggle-edit-btn {
+      border-color: #ffee55;
+      color: #ffee55;
+      font-weight: bold;
+    }
+    .toggle-edit-btn.active {
+      background: rgba(255, 238, 85, 0.1);
+      box-shadow: 0 0 10px rgba(255, 238, 85, 0.2);
+    }
 
     .bpm-container {
       display: flex;
@@ -117,11 +127,8 @@
       font-weight: bold;
       font-size: 11px;
       letter-spacing: 1px;
-      cursor: pointer;
       padding: 4px 0;
     }
-
-    .track-label:hover { text-shadow: 0 0 8px currentColor; }
 
     .track-controls {
       display: none; 
@@ -197,20 +204,24 @@
     .track-label.clap { color: var(--clap); }
     .track-label.bass { color: var(--bass); }
 
+    /* Sound Parameters Panel Dashboard Area */
     .synth-edit-panel {
       background: var(--dim);
       border: 1px dashed var(--border);
       border-radius: 6px;
       padding: 15px;
-      margin-top: 20px;
+      margin-top: 25px;
       display: none;
     }
 
-    .synth-edit-title { font-family: 'Orbitron', sans-serif; font-size: 13px; margin-bottom: 12px; }
+    .synth-edit-title { font-family: 'Orbitron', sans-serif; font-size: 13px; margin-bottom: 15px; color: #fff; letter-spacing: 1px; }
+    .track-param-section { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
+    .track-param-section:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    .track-param-section-title { font-size: 11px; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
     .synth-controls-row { display: flex; gap: 20px; flex-wrap: wrap; }
-    .knob-group { display: flex; flex-direction: column; gap: 6px; }
+    .knob-group { display: flex; flex-direction: column; gap: 4px; }
     .knob-group label { font-size: 11px; color: var(--text-dim); }
-    .synth-slider { -webkit-appearance: none; width: 120px; height: 4px; background: var(--panel); border: 1px solid var(--border); outline: none; }
+    .synth-slider { -webkit-appearance: none; width: 130px; height: 4px; background: var(--panel); border: 1px solid var(--border); outline: none; }
     .synth-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text); }
 
     .cursor-timeline {
@@ -242,6 +253,7 @@
         </div>
         <button class="play-btn" id="playBtn">▶ PLAY</button>
         <button id="clearBtn">CLEAR</button>
+        <button class="toggle-edit-btn" id="toggleEditBtn">🎛️ SHOW EDIT CONTROLS</button>
         <button class="save-btn" id="saveBtn">💾 SAVE BEAT</button>
         <button id="recordBtn">EXPORT WAV</button>
       </div>
@@ -253,8 +265,8 @@
     </div>
 
     <div class="synth-edit-panel" id="synthEditor">
-      <div class="synth-edit-title" id="editorTitle">SYNTH_PARAMETER_TUNING//</div>
-      <div class="synth-controls-row" id="editorControls"></div>
+      <div class="synth-edit-title">GLOBAL_SOUND_TUNING_DASHBOARD//</div>
+      <div id="globalEditorControls"></div>
     </div>
   </div>
 
@@ -283,18 +295,18 @@
 
   <script>
     const TRACKS = [
-      { id: 'kick',  label: 'KICK (•)',   color: 'kick'  },
-      { id: 'snare', label: 'SNARE (•)',  color: 'snare' },
-      { id: 'hihat', label: 'HI-HAT (•)', color: 'hihat' },
-      { id: 'clap',  label: 'CLAP (•)',   color: 'clap'  },
-      { id: 'bass',  label: 'BASS (•)',   color: 'bass'  },
+      { id: 'kick',  label: 'KICK',   color: 'kick'  },
+      { id: 'snare', label: 'SNARE',  color: 'snare' },
+      { id: 'hihat', label: 'HI-HAT', color: 'hihat' },
+      { id: 'clap',  label: 'CLAP',   color: 'clap'  },
+      { id: 'bass',  label: 'BASS',   color: 'bass'  },
     ];
     const STEPS = 16;
     let bpm = 120;
     let isPlaying = false;
     let currentStep = 0;
     let stepInterval = null;
-    let activeEditorTrack = null;
+    let showEditPanel = false;
 
     let grid = TRACKS.map(() => Array(STEPS).fill(false));
 
@@ -375,32 +387,41 @@
       }
     }
 
-    function openSynthEditor(trackId) {
-      initAudio();
-      activeEditorTrack = trackId;
-      const panel = document.getElementById('synthEditor');
-      const title = document.getElementById('editorTitle');
-      const controlsRow = document.getElementById('editorControls');
-      
-      panel.style.display = 'block';
-      title.textContent = `TUNING ENGINE // ${trackId.toUpperCase()}_CONFIG`;
-      title.style.color = `var(--${trackId})`;
-      controlsRow.innerHTML = '';
+    function buildGlobalSynthEditor() {
+      const parentContainer = document.getElementById('globalEditorControls');
+      parentContainer.innerHTML = '';
 
-      if (trackId === 'kick') {
-        createSliderKnob(controlsRow, 'Punch/Decay Scale', 0.02, 0.2, 0.01, synthParams.kick.pitchDecay, (val) => { synthParams.kick.pitchDecay = val; applyLiveParams(); });
-        createSliderKnob(controlsRow, 'Thud/Length Decay', 0.1, 0.8, 0.05, synthParams.kick.decay, (val) => { synthParams.kick.decay = val; applyLiveParams(); });
-      } else if (trackId === 'snare') {
-        createSliderKnob(controlsRow, 'Snappy Decay Time', 0.05, 0.5, 0.02, synthParams.snare.decay, (val) => { synthParams.snare.decay = val; applyLiveParams(); });
-      } else if (trackId === 'hihat') {
-        createSliderKnob(controlsRow, 'Metallic Pitch Freq', 200, 1200, 25, synthParams.hihat.frequency, (val) => { synthParams.hihat.frequency = val; applyLiveParams(); });
-        createSliderKnob(controlsRow, 'Sizzle Decay Time', 0.02, 0.3, 0.01, synthParams.hihat.decay, (val) => { synthParams.hihat.decay = val; applyLiveParams(); });
-      } else if (trackId === 'clap') {
-        createSliderKnob(controlsRow, 'Burst Decay Space', 0.05, 0.6, 0.02, synthParams.clap.decay, (val) => { synthParams.clap.decay = val; applyLiveParams(); });
-      } else if (trackId === 'bass') {
-        createDropdownKnob(controlsRow, 'Waveform Type', ['sawtooth', 'square', 'triangle', 'sine'], synthParams.bass.type, (val) => { synthParams.bass.type = val; applyLiveParams(); });
-        createSliderKnob(controlsRow, 'Sub Bass Decay', 0.1, 0.7, 0.02, synthParams.bass.decay, (val) => { synthParams.bass.decay = val; applyLiveParams(); });
-      }
+      TRACKS.forEach(track => {
+        const section = document.createElement('div');
+        section.className = 'track-param-section';
+
+        const secTitle = document.createElement('div');
+        secTitle.className = `track-param-section-title var(--${track.id})`;
+        secTitle.textContent = `${track.label}_ENGINE`;
+        secTitle.style.color = `var(--${track.id})`;
+        section.appendChild(secTitle);
+
+        const row = document.createElement('div');
+        row.className = 'synth-controls-row';
+
+        if (track.id === 'kick') {
+          createSliderKnob(row, 'Punch Scale', 0.02, 0.2, 0.01, synthParams.kick.pitchDecay, (val) => { synthParams.kick.pitchDecay = val; applyLiveParams(); });
+          createSliderKnob(row, 'Thud Decay', 0.1, 0.8, 0.05, synthParams.kick.decay, (val) => { synthParams.kick.decay = val; applyLiveParams(); });
+        } else if (track.id === 'snare') {
+          createSliderKnob(row, 'Snappy Decay', 0.05, 0.5, 0.02, synthParams.snare.decay, (val) => { synthParams.snare.decay = val; applyLiveParams(); });
+        } else if (track.id === 'hihat') {
+          createSliderKnob(row, 'Pitch Frequency', 200, 1200, 25, synthParams.hihat.frequency, (val) => { synthParams.hihat.frequency = val; applyLiveParams(); });
+          createSliderKnob(row, 'Sizzle Decay', 0.02, 0.3, 0.01, synthParams.hihat.decay, (val) => { synthParams.hihat.decay = val; applyLiveParams(); });
+        } else if (track.id === 'clap') {
+          createSliderKnob(row, 'Burst Decay', 0.05, 0.6, 0.02, synthParams.clap.decay, (val) => { synthParams.clap.decay = val; applyLiveParams(); });
+        } else if (track.id === 'bass') {
+          createDropdownKnob(row, 'Waveform', ['sawtooth', 'square', 'triangle', 'sine'], synthParams.bass.type, (val) => { synthParams.bass.type = val; applyLiveParams(); });
+          createSliderKnob(row, 'Sub Decay', 0.1, 0.7, 0.02, synthParams.bass.decay, (val) => { synthParams.bass.decay = val; applyLiveParams(); });
+        }
+
+        section.appendChild(row);
+        parentContainer.appendChild(section);
+      });
     }
 
     function createSliderKnob(parent, textLabel, min, max, step, initialVal, onChange) {
@@ -419,18 +440,6 @@
       wrap.appendChild(lbl); wrap.appendChild(slider); parent.appendChild(wrap);
     }
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      grid = TRACKS.map(() => Array(STEPS).fill(false));
-      document.getElementById('factorySelect').value = "";
-      localStorage.removeItem('last_factory_selection');
-      const customSelect = document.getElementById('customSelect');
-      if(customSelect) {
-        customSelect.value = "";
-        localStorage.removeItem('last_custom_selection');
-      }
-      buildGridUI();
-    });
-
     function createDropdownKnob(parent, textLabel, optionsArray, initialVal, onChange) {
       const wrap = document.createElement('div');
       wrap.className = 'knob-group';
@@ -446,6 +455,24 @@
       wrap.appendChild(lbl); wrap.appendChild(sel); parent.appendChild(wrap);
     }
 
+    function toggleEditDashboard() {
+      initAudio();
+      showEditPanel = !showEditPanel;
+      const btn = document.getElementById('toggleEditBtn');
+      const panel = document.getElementById('synthEditor');
+      
+      if (showEditPanel) {
+        buildGlobalSynthEditor();
+        panel.style.display = 'block';
+        btn.textContent = '🎚️ HIDE EDIT CONTROLS';
+        btn.classList.add('active');
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = '🎛️ SHOW EDIT CONTROLS';
+        btn.classList.remove('active');
+      }
+    }
+
     function buildGridUI() {
       const container = document.getElementById('grid');
       container.innerHTML = '';
@@ -457,7 +484,6 @@
         const label = document.createElement('div');
         label.className = `track-label ${track.color}`;
         label.textContent = track.label;
-        label.addEventListener('click', () => openSynthEditor(track.id));
         row.appendChild(label);
 
         const ctrlWrapper = document.createElement('div');
@@ -617,7 +643,6 @@
       buildGridUI();
     }
 
-    // --- Save & Persistence Layout Core ---
     function saveCustomPreset() {
       const name = prompt("Enter a name for your custom pattern:");
       if (!name) return;
@@ -660,8 +685,20 @@
     }
 
     document.getElementById('playBtn').addEventListener('click', startStopSequencer);
+    document.getElementById('toggleEditBtn').addEventListener('click', toggleEditDashboard);
 
-    // Persist Factory Selection Change
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      grid = TRACKS.map(() => Array(STEPS).fill(false));
+      document.getElementById('factorySelect').value = "";
+      localStorage.removeItem('last_factory_selection');
+      const customSelect = document.getElementById('customSelect');
+      if(customSelect) {
+        customSelect.value = "";
+        localStorage.removeItem('last_custom_selection');
+      }
+      buildGridUI();
+    });
+
     document.getElementById('factorySelect').addEventListener('change', (e) => {
       const selection = e.target.value;
       localStorage.setItem('last_factory_selection', selection);
@@ -673,7 +710,6 @@
       triggerFactorySequence(selection);
     });
 
-    // Persist User Custom Selection Change
     document.getElementById('customSelect').addEventListener('change', (e) => {
       const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
       const selection = e.target.value;
@@ -689,11 +725,9 @@
       buildGridUI();
     });
 
-    // Initial Load & State Recovery Process
     buildGridUI();
     loadCustomPresetsMenu();
 
-    // Check if a previous selection was stored in either box and instantly load it back up
     const storedFactory = localStorage.getItem('last_factory_selection');
     const storedCustom = localStorage.getItem('last_custom_selection');
 
