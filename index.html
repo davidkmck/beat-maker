@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cyberpunk Beat Maker</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="./beat-maker.png">
@@ -171,7 +171,7 @@
       outline: none;
     }
 
-    /* Grid Layout - Defaults to Portrait View (Hides Track Controls) */
+    /* Grid Layout */
     .sequencer-grid {
       display: flex;
       flex-direction: column;
@@ -181,7 +181,7 @@
 
     .beat-row {
       display: grid;
-      grid-template-columns: 80px 1fr; /* No middle column for track-controls in portrait */
+      grid-template-columns: 80px 1fr;
       gap: 15px;
       align-items: center;
     }
@@ -190,48 +190,31 @@
       font-weight: bold;
       font-size: 12px;
       letter-spacing: 1px;
+      cursor: pointer;
+      padding: 6px 0;
+      border-bottom: 1px dashed transparent;
+      transition: all 0.2s;
     }
 
-    /* Hide Mute and Pan by default on mobile screens/portrait layout */
+    .track-label:hover {
+      text-shadow: 0 0 8px currentColor;
+      border-bottom-color: currentColor;
+    }
+
     .track-controls {
       display: none; 
       align-items: center;
       gap: 10px;
     }
 
-/* Update the landscape override to fit BOTH sliders neatly */
-@media (orientation: landscape), (min-width: 768px) {
-  .beat-row {
-    grid-template-columns: 80px 240px 1fr; /* Widened from 140px to 240px */
-  }
-  .track-controls {
-    display: flex;
-  }
-}
-
-/* Style for the new volume slider */
-.vol-slider {
-  -webkit-appearance: none;
-  width: 70px;
-  height: 4px;
-  background: var(--dim);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  outline: none;
-}
-
-.vol-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  cursor: pointer;
-}
-
-.vol-slider:active::-webkit-slider-thumb {
-  background: var(--kick); /* Light up red/pink when adjusting volume */
-}
+    @media (orientation: landscape), (min-width: 768px) {
+      .beat-row {
+        grid-template-columns: 80px 240px 1fr;
+      }
+      .track-controls {
+        display: flex;
+      }
+    }
 
     .mute-btn {
       background: var(--dim);
@@ -251,7 +234,7 @@
       text-shadow: 0 0 6px var(--kick);
     }
 
-    .pan-slider {
+    .pan-slider, .vol-slider {
       -webkit-appearance: none;
       width: 70px;
       height: 4px;
@@ -261,7 +244,7 @@
       outline: none;
     }
 
-    .pan-slider::-webkit-slider-thumb {
+    .pan-slider::-webkit-slider-thumb, .vol-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 10px;
       height: 10px;
@@ -270,9 +253,8 @@
       cursor: pointer;
     }
     
-    .pan-slider:active::-webkit-slider-thumb {
-      background: var(--snare);
-    }
+    .pan-slider:active::-webkit-slider-thumb { background: var(--snare); }
+    .vol-slider:active::-webkit-slider-thumb { background: var(--kick); }
 
     .steps {
       display: grid;
@@ -303,6 +285,59 @@
     .track-label.hihat { color: var(--hihat); }
     .track-label.clap { color: var(--clap); }
     .track-label.bass { color: var(--bass); }
+
+    /* Synth Edit Panel Drawer Styling */
+    .synth-edit-panel {
+      background: var(--dim);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .synth-edit-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .synth-controls-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .knob-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .knob-group label {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .synth-slider {
+      -webkit-appearance: none;
+      width: 120px;
+      height: 4px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .synth-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text);
+      cursor: pointer;
+    }
 
     /* Moving Timeline Playback Cursor */
     .cursor-timeline {
@@ -378,6 +413,12 @@
       <div id="grid"></div>
       <div class="cursor-timeline" id="cursor"></div>
     </div>
+
+    <div class="synth-edit-panel" id="synthEditor">
+      <div class="synth-edit-title" id="editorTitle">SYNTH_PARAMETER_TUNING//</div>
+      <div class="synth-controls-row" id="editorControls">
+        </div>
+    </div>
   </div>
 
   <footer>
@@ -403,31 +444,40 @@
             </select>
         </div>
       </div>
-      
     </div>
   </footer>
 
   <script>
     const TRACKS = [
-      { id: 'kick',  label: 'KICK',   color: 'kick'  },
-      { id: 'snare', label: 'SNARE',  color: 'snare' },
-      { id: 'hihat', label: 'HI-HAT', color: 'hihat' },
-      { id: 'clap',  label: 'CLAP',   color: 'clap'  },
-      { id: 'bass',  label: 'BASS',   color: 'bass'  },
+      { id: 'kick',  label: 'KICK (•)',   color: 'kick'  },
+      { id: 'snare', label: 'SNARE (•)',  color: 'snare' },
+      { id: 'hihat', label: 'HI-HAT (•)', color: 'hihat' },
+      { id: 'clap',  label: 'CLAP (•)',   color: 'clap'  },
+      { id: 'bass',  label: 'BASS (•)',   color: 'bass'  },
     ];
     const STEPS = 16;
     let bpm = 120;
     let isPlaying = false;
     let currentStep = 0;
     let stepInterval = null;
+    let activeEditorTrack = null;
 
     let grid = TRACKS.map(() => Array(STEPS).fill(false));
 
-    // Web Audio Variables
+    // Web Audio Variable Definitions & Engine Default Tuning Architecture
     let synths = {};
     let channels = {};
     let recorder = null;
     let isRecording = false;
+
+    // Track sound-design state mapping (defaults)
+    let synthParams = {
+      kick: { pitchDecay: 0.08, decay: 0.35 },
+      snare: { decay: 0.18 },
+      hihat: { frequency: 450, decay: 0.05 },
+      clap: { decay: 0.12 },
+      bass: { type: 'sawtooth', decay: 0.25 }
+    };
 
     function initAudio() {
       if (synths.kick) return; 
@@ -448,24 +498,36 @@
       });
 
       synths.kick = new Tone.MembraneSynth({
-        pitchDecay: 0.08, octaves: 8, envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.1 }, volume: 3,
+        pitchDecay: synthParams.kick.pitchDecay, octaves: 8, envelope: { attack: 0.001, decay: synthParams.kick.decay, sustain: 0, release: 0.1 }, volume: 3,
       }).connect(channels.kick);
 
       synths.snare = new Tone.NoiseSynth({
-        noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.05 }, volume: -3,
+        noise: { type: 'white' }, envelope: { attack: 0.001, decay: synthParams.snare.decay, sustain: 0, release: 0.05 }, volume: -3,
       }).connect(channels.snare);
 
       synths.hihat = new Tone.MetalSynth({
-        frequency: 450, envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -9,
+        frequency: synthParams.hihat.frequency, envelope: { attack: 0.001, decay: synthParams.hihat.decay, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -9,
       }).connect(channels.hihat);
 
       synths.clap = new Tone.NoiseSynth({
-        noise: { type: 'pink' }, envelope: { attack: 0.005, decay: 0.12, sustain: 0, release: 0.05 }, volume: -5,
+        noise: { type: 'pink' }, envelope: { attack: 0.005, decay: synthParams.clap.decay, sustain: 0, release: 0.05 }, volume: -5,
       }).connect(channels.clap);
 
       synths.bass = new Tone.Synth({
-        oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.1, release: 0.1 }, volume: -7,
+        oscillator: { type: synthParams.bass.type }, envelope: { attack: 0.01, decay: synthParams.bass.decay, sustain: 0.1, release: 0.1 }, volume: -7,
       }).connect(channels.bass);
+    }
+
+    function applyLiveParams() {
+      if (!synths.kick) return;
+      synths.kick.pitchDecay = synthParams.kick.pitchDecay;
+      synths.kick.envelope.decay = synthParams.kick.decay;
+      synths.snare.envelope.decay = synthParams.snare.decay;
+      synths.hihat.frequency.value = synthParams.hihat.frequency;
+      synths.hihat.envelope.decay = synthParams.hihat.decay;
+      synths.clap.envelope.decay = synthParams.clap.decay;
+      synths.bass.oscillator.type = synthParams.bass.type;
+      synths.bass.envelope.decay = synthParams.bass.decay;
     }
 
     function playTrackSound(trackId) {
@@ -481,104 +543,176 @@
       }
     }
 
-    function buildGridUI() {
-  const container = document.getElementById('grid');
-  container.innerHTML = '';
-  
-  TRACKS.forEach((track, ti) => {
-    const row = document.createElement('div');
-    row.className = 'beat-row';
-    
-    const label = document.createElement('div');
-    label.className = `track-label ${track.color}`;
-    label.textContent = track.label;
-    row.appendChild(label);
-
-    const ctrlWrapper = document.createElement('div');
-    ctrlWrapper.className = 'track-controls';
-
-    // 1) Track Mute Button
-    const muteBtn = document.createElement('button');
-    muteBtn.className = 'mute-btn';
-    muteBtn.textContent = channels[track.id]?.mute ? 'MUTED' : 'MUTE';
-    if(channels[track.id]?.mute) muteBtn.classList.add('muted');
-    
-    muteBtn.addEventListener('click', () => {
+    function openSynthEditor(trackId) {
       initAudio();
-      const currentlyMuted = !channels[track.id].mute;
-      channels[track.id].mute = currentlyMuted;
-      muteBtn.classList.toggle('muted', currentlyMuted);
-      muteBtn.textContent = currentlyMuted ? 'MUTED' : 'MUTE';
-    });
-
-    // NEW: 2) Track Volume Slider (Decibel Mapping)
-    const volSlider = document.createElement('input');
-    volSlider.type = 'range';
-    volSlider.className = 'vol-slider';
-    volSlider.min = '-30';  // Low floor
-    volSlider.max = '6';    // Slight boost headroom
-    volSlider.step = '1';
-    // Default to 0 dB if channel doesn't exist yet
-    volSlider.value = channels[track.id] ? channels[track.id].volume.value : '0';
-    volSlider.title = "Volume";
-    
-    volSlider.addEventListener('input', (e) => {
-      initAudio();
-      let val = parseFloat(e.target.value);
-      // If turned all the way down, drop it to silence
-      if (val === -30) {
-        channels[track.id].volume.value = -Infinity;
-      } else {
-        channels[track.id].volume.value = val;
-      }
-    });
-
-    // 3) Track Pan Slider
-    const panSlider = document.createElement('input');
-    panSlider.type = 'range';
-    panSlider.className = 'pan-slider';
-    panSlider.min = '-1';
-    panSlider.max = '1';
-    panSlider.step = '0.1';
-    panSlider.value = channels[track.id] ? channels[track.id].pan.value : '0';
-    panSlider.title = "Pan";
-    
-    panSlider.addEventListener('input', (e) => {
-      initAudio();
-      channels[track.id].pan.value = parseFloat(e.target.value);
-    });
-
-    // Append all three to the control panel block
-    ctrlWrapper.appendChild(muteBtn);
-    ctrlWrapper.appendChild(volSlider); // Injected volume
-    ctrlWrapper.appendChild(panSlider);
-    row.appendChild(ctrlWrapper);
-
-    const stepsContainer = document.createElement('div');
-    stepsContainer.className = 'steps';
-    
-    for (let si = 0; si < STEPS; si++) {
-      const stepElement = document.createElement('div');
-      stepElement.className = `step ${track.color}`;
-      if (grid[ti][si]) stepElement.classList.add('active');
+      activeEditorTrack = trackId;
+      const panel = document.getElementById('synthEditor');
+      const title = document.getElementById('editorTitle');
+      const controlsRow = document.getElementById('editorControls');
       
-      stepElement.addEventListener('click', () => {
-        grid[ti][si] = !grid[ti][si];
-        stepElement.classList.toggle('active', grid[ti][si]);
-        if (grid[ti][si]) {
-          initAudio();
-          Tone.start();
-          playTrackSound(track.id);
-        }
-      });
-      stepsContainer.appendChild(stepElement);
+      panel.style.display = 'block';
+      const cleanTrackName = trackId.toUpperCase();
+      title.textContent = `TUNING ENGINE // ${cleanTrackName}_CONFIG`;
+      title.style.color = `var(--${trackId})`;
+      controlsRow.innerHTML = '';
+
+      // Render custom parameter configurations dynamically depending on the selected track engine
+      if (trackId === 'kick') {
+        createSliderKnob(controlsRow, 'Punch/Decay Scale', 0.02, 0.2, 0.01, synthParams.kick.pitchDecay, (val) => {
+          synthParams.kick.pitchDecay = val; applyLiveParams();
+        });
+        createSliderKnob(controlsRow, 'Thud/Length Decay', 0.1, 0.8, 0.05, synthParams.kick.decay, (val) => {
+          synthParams.kick.decay = val; applyLiveParams();
+        });
+      } else if (trackId === 'snare') {
+        createSliderKnob(controlsRow, 'Snappy Decay Time', 0.05, 0.5, 0.02, synthParams.snare.decay, (val) => {
+          synthParams.snare.decay = val; applyLiveParams();
+        });
+      } else if (trackId === 'hihat') {
+        createSliderKnob(controlsRow, 'Metallic Pitch Freq', 200, 1200, 25, synthParams.hihat.frequency, (val) => {
+          synthParams.hihat.frequency = val; applyLiveParams();
+        });
+        createSliderKnob(controlsRow, 'Sizzle Decay Time', 0.02, 0.3, 0.01, synthParams.hihat.decay, (val) => {
+          synthParams.hihat.decay = val; applyLiveParams();
+        });
+      } else if (trackId === 'clap') {
+        createSliderKnob(controlsRow, 'Burst Decay Space', 0.05, 0.6, 0.02, synthParams.clap.decay, (val) => {
+          synthParams.clap.decay = val; applyLiveParams();
+        });
+      } else if (trackId === 'bass') {
+        createDropdownKnob(controlsRow, 'Waveform Type', ['sawtooth', 'square', 'triangle', 'sine'], synthParams.bass.type, (val) => {
+          synthParams.bass.type = val; applyLiveParams();
+        });
+        createSliderKnob(controlsRow, 'Sub Bass Decay', 0.1, 0.7, 0.02, synthParams.bass.decay, (val) => {
+          synthParams.bass.decay = val; applyLiveParams();
+        });
+      }
     }
-    row.appendChild(stepsContainer);
-    container.appendChild(row);
-  });
-}
-    
- 
+
+    function createSliderKnob(parent, textLabel, min, max, step, initialVal, onChange) {
+      const wrap = document.createElement('div');
+      wrap.className = 'knob-group';
+      const lbl = document.createElement('label');
+      lbl.textContent = `${textLabel}: ${initialVal}`;
+      
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.className = 'synth-slider';
+      slider.min = min; slider.max = max; slider.step = step; slider.value = initialVal;
+      
+      slider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        lbl.textContent = `${textLabel}: ${v}`;
+        onChange(v);
+      });
+      wrap.appendChild(lbl);
+      wrap.appendChild(slider);
+      parent.appendChild(wrap);
+    }
+
+    function createDropdownKnob(parent, textLabel, optionsArray, initialVal, onChange) {
+      const wrap = document.createElement('div');
+      wrap.className = 'knob-group';
+      const lbl = document.createElement('label');
+      lbl.textContent = textLabel;
+      
+      const sel = document.createElement('select');
+      optionsArray.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt; o.textContent = opt.toUpperCase();
+        if(opt === initialVal) o.selected = true;
+        sel.appendChild(o);
+      });
+      
+      sel.addEventListener('change', (e) => {
+        onChange(e.target.value);
+      });
+      wrap.appendChild(lbl);
+      wrap.appendChild(sel);
+      parent.appendChild(wrap);
+    }
+
+    function buildGridUI() {
+      const container = document.getElementById('grid');
+      container.innerHTML = '';
+      
+      TRACKS.forEach((track, ti) => {
+        const row = document.createElement('div');
+        row.className = 'beat-row';
+        
+        const label = document.createElement('div');
+        label.className = `track-label ${track.color}`;
+        label.textContent = track.label;
+        label.title = "Click to tune sound profile parameters";
+        label.addEventListener('click', () => openSynthEditor(track.id));
+        row.appendChild(label);
+
+        const ctrlWrapper = document.createElement('div');
+        ctrlWrapper.className = 'track-controls';
+
+        const muteBtn = document.createElement('button');
+        muteBtn.className = 'mute-btn';
+        muteBtn.textContent = channels[track.id]?.mute ? 'MUTED' : 'MUTE';
+        if(channels[track.id]?.mute) muteBtn.classList.add('muted');
+        
+        muteBtn.addEventListener('click', () => {
+          initAudio();
+          const currentlyMuted = !channels[track.id].mute;
+          channels[track.id].mute = currentlyMuted;
+          muteBtn.classList.toggle('muted', currentlyMuted);
+          muteBtn.textContent = currentlyMuted ? 'MUTED' : 'MUTE';
+        });
+
+        const volSlider = document.createElement('input');
+        volSlider.type = 'range';
+        volSlider.className = 'vol-slider';
+        volSlider.min = '-30';  volSlider.max = '6'; volSlider.step = '1';
+        volSlider.value = channels[track.id] ? channels[track.id].volume.value : '0';
+        volSlider.addEventListener('input', (e) => {
+          initAudio();
+          let val = parseFloat(e.target.value);
+          if (val === -30) channels[track.id].volume.value = -Infinity;
+          else channels[track.id].volume.value = val;
+        });
+
+        const panSlider = document.createElement('input');
+        panSlider.type = 'range';
+        panSlider.className = 'pan-slider';
+        panSlider.min = '-1'; panSlider.max = '1'; panSlider.step = '0.1';
+        panSlider.value = channels[track.id] ? channels[track.id].pan.value : '0';
+        panSlider.addEventListener('input', (e) => {
+          initAudio();
+          channels[track.id].pan.value = parseFloat(e.target.value);
+        });
+
+        ctrlWrapper.appendChild(muteBtn);
+        ctrlWrapper.appendChild(volSlider);
+        ctrlWrapper.appendChild(panSlider);
+        row.appendChild(ctrlWrapper);
+
+        const stepsContainer = document.createElement('div');
+        stepsContainer.className = 'steps';
+        
+        for (let si = 0; si < STEPS; si++) {
+          const stepElement = document.createElement('div');
+          stepElement.className = `step ${track.color}`;
+          if (grid[ti][si]) stepElement.classList.add('active');
+          
+          stepElement.addEventListener('click', () => {
+            grid[ti][si] = !grid[ti][si];
+            stepElement.classList.toggle('active', grid[ti][si]);
+            if (grid[ti][si]) {
+              initAudio();
+              Tone.start();
+              playTrackSound(track.id);
+            }
+          });
+          stepsContainer.appendChild(stepElement);
+        }
+        row.appendChild(stepsContainer);
+        container.appendChild(row);
+      });
+    }
 
     function updateCursorPosition() {
       const cursor = document.getElementById('cursor');
@@ -666,7 +800,7 @@
       }
     }
 
-    // --- Save System Logic ---
+    // --- Save System Logic (Updated to Cache Custom Engine Timbres) ---
     function saveCustomPreset() {
       const name = prompt("Enter a name for your custom pattern:");
       if (!name) return;
@@ -676,13 +810,12 @@
       
       savedPresets[formattedName] = {
         bpm: parseInt(document.getElementById('bpm').value) || 120,
-        grid: grid
+        grid: grid,
+        params: JSON.parse(JSON.stringify(synthParams)) // Deep clone the custom synth settings
       };
       
       localStorage.setItem('custom_presets', JSON.stringify(savedPresets));
       loadCustomPresetsMenu();
-      
-      // Auto-select the newly saved layout inside the select menu dropdown
       document.getElementById('customSelect').value = formattedName;
     }
 
@@ -708,7 +841,19 @@
       });
     }
 
-    // Interactive Button Binding Listeners
+    function resetFactoryTuningDefaults() {
+      synthParams = {
+        kick: { pitchDecay: 0.08, decay: 0.35 },
+        snare: { decay: 0.18 },
+        hihat: { frequency: 450, decay: 0.05 },
+        clap: { decay: 0.12 },
+        bass: { type: 'sawtooth', decay: 0.25 }
+      };
+      applyLiveParams();
+      if (activeEditorTrack) openSynthEditor(activeEditorTrack);
+    }
+
+    // Button Listeners
     document.getElementById('playBtn').addEventListener('click', startStopSequencer);
     document.getElementById('recordBtn').addEventListener('click', handleWavExport);
     document.getElementById('saveBtn').addEventListener('click', saveCustomPreset);
@@ -718,6 +863,8 @@
       document.getElementById('factorySelect').value = "";
       const customSelect = document.getElementById('customSelect');
       if(customSelect) customSelect.value = "";
+      document.getElementById('synthEditor').style.display = 'none';
+      activeEditorTrack = null;
       buildGridUI();
     });
 
@@ -730,13 +877,13 @@
       }
     });
 
-    // Combo Box Event Listeners (Factory System)
+    // Combo Box Listeners (Factory Presets reset sound structures to baseline styles)
     document.getElementById('factorySelect').addEventListener('change', (e) => {
       const selection = e.target.value;
-      
-      // Reset the user preset dropdown layout selection if chosen
       const userSelect = document.getElementById('customSelect');
       if (userSelect) userSelect.value = "";
+      
+      resetFactoryTuningDefaults();
 
       if (selection === 'techno') {
         document.getElementById('bpm').value = 126; bpm = 126;
@@ -787,25 +934,32 @@
       buildGridUI();
     });
 
-    // Combo Box Event Listeners (User Memory)
+    // Combo Box User Preset Loader - Fully reconstructs custom tuned instrument states
     document.getElementById('customSelect').addEventListener('change', (e) => {
       const savedPresets = JSON.parse(localStorage.getItem('custom_presets')) || {};
       const selection = e.target.value;
       if (!savedPresets[selection]) return;
 
-      // Reset factory selection visual index
       document.getElementById('factorySelect').value = "";
 
       document.getElementById('bpm').value = savedPresets[selection].bpm;
       bpm = savedPresets[selection].bpm;
       grid = savedPresets[selection].grid;
+      
+      if (savedPresets[selection].params) {
+        synthParams = savedPresets[selection].params;
+      }
+      
+      initAudio();
+      applyLiveParams();
       buildGridUI();
+      
+      if (activeEditorTrack) openSynthEditor(activeEditorTrack);
     });
 
-    // Recalculate timeline cursor whenever device rotates to fix styling offsets
     window.addEventListener('resize', updateCursorPosition);
 
-    // Render workspace on boot
+    // Initial load configurations
     buildGridUI();
     loadCustomPresetsMenu();
   </script>
