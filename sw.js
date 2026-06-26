@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beat-maker-v9';
+const CACHE_NAME = 'beat-maker-v10';
 const ASSETS = [
   '/beat-maker/',
   '/beat-maker/index.html',
