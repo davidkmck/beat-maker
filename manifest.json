@@ -3,13 +3,13 @@
   "name": "Beat Maker Sequencer",
   "icons": [
     {
-      "src": "./beat-maker.png",
+      "src": "./icon-sml.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "./beat-maker.png",
+      "src": "./icon.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
