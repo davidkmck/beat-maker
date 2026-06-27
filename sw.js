@@ -1,9 +1,10 @@
-const CACHE_NAME = 'beat-maker-v10';
+const CACHE_NAME = 'beat-maker-v11';
 const ASSETS = [
   '/beat-maker/',
   '/beat-maker/index.html',
   '/beat-maker/manifest.json',
-  '/beat-maker/beat-maker.png'
+  '/beat-maker/icon.png',
+  '/beat-maker/icon-sml.png'
 ];
 
 // Install Service Worker and cache assets
